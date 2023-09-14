@@ -275,53 +275,57 @@ class CustomDataset(Dataset):
             torch.tensor(np.array(final_classes)), area, iscrowd, dims
 
     def __getitem__(self, idx):
-        if not self.train: # No mosaic during validation.
-            image, image_resized, orig_boxes, boxes, \
-                labels, area, iscrowd, dims = self.load_image_and_labels(
-                index=idx
-            )
+        while True:
+            try:
+                if not self.train: # No mosaic during validation.
+                    image, image_resized, orig_boxes, boxes, \
+                        labels, area, iscrowd, dims = self.load_image_and_labels(
+                        index=idx
+                    )
 
-        if self.train: 
-            mosaic_prob = random.uniform(0.0, 1.0)
-            if self.mosaic >= mosaic_prob:
-                image_resized, boxes, labels, \
-                    area, iscrowd, dims = self.load_cutmix_image_and_boxes(
-                    idx, resize_factor=(self.img_size, self.img_size)
-                )
-            else:
-                image, image_resized, orig_boxes, boxes, \
-                    labels, area, iscrowd, dims = self.load_image_and_labels(
-                    index=idx
-                )
+                if self.train: 
+                    mosaic_prob = random.uniform(0.0, 1.0)
+                    if self.mosaic >= mosaic_prob:
+                        image_resized, boxes, labels, \
+                            area, iscrowd, dims = self.load_cutmix_image_and_boxes(
+                            idx, resize_factor=(self.img_size, self.img_size)
+                        )
+                    else:
+                        image, image_resized, orig_boxes, boxes, \
+                            labels, area, iscrowd, dims = self.load_image_and_labels(
+                            index=idx
+                        )
 
-        # Prepare the final `target` dictionary.
-        target = {}
-        target["boxes"] = boxes
-        target["labels"] = labels
-        target["area"] = area
-        target["iscrowd"] = iscrowd
-        image_id = torch.tensor([idx])
-        target["image_id"] = image_id
+                # Prepare the final `target` dictionary.
+                target = {}
+                target["boxes"] = boxes
+                target["labels"] = labels
+                target["area"] = area
+                target["iscrowd"] = iscrowd
+                image_id = torch.tensor([idx])
+                target["image_id"] = image_id
 
-        if self.use_train_aug: # Use train augmentation if argument is passed.
-            train_aug = get_train_aug()
-            sample = train_aug(image=image_resized,
-                                     bboxes=target['boxes'],
-                                     labels=labels)
-            image_resized = sample['image']
-            target['boxes'] = torch.Tensor(sample['bboxes']).to(torch.int64)
-        else:
-            sample = self.transforms(image=image_resized,
-                                     bboxes=target['boxes'],
-                                     labels=labels)
-            image_resized = sample['image']
-            target['boxes'] = torch.Tensor(sample['bboxes']).to(torch.int64)
+                if self.use_train_aug: # Use train augmentation if argument is passed.
+                    train_aug = get_train_aug()
+                    sample = train_aug(image=image_resized,
+                                            bboxes=target['boxes'],
+                                            labels=labels)
+                    image_resized = sample['image']
+                    target['boxes'] = torch.Tensor(sample['bboxes']).to(torch.int64)
+                else:
+                    sample = self.transforms(image=image_resized,
+                                            bboxes=target['boxes'],
+                                            labels=labels)
+                    image_resized = sample['image']
+                    target['boxes'] = torch.Tensor(sample['bboxes']).to(torch.int64)
 
-        # Fix to enable training without target bounding boxes,
-        # see https://discuss.pytorch.org/t/fasterrcnn-images-with-no-objects-present-cause-an-error/117974/4
-        if np.isnan((target['boxes']).numpy()).any() or target['boxes'].shape == torch.Size([0]):
-            target['boxes'] = torch.zeros((0, 4), dtype=torch.int64)
-        return image_resized, target
+                # Fix to enable training without target bounding boxes,
+                # see https://discuss.pytorch.org/t/fasterrcnn-images-with-no-objects-present-cause-an-error/117974/4
+                if np.isnan((target['boxes']).numpy()).any() or target['boxes'].shape == torch.Size([0]):
+                    target['boxes'] = torch.zeros((0, 4), dtype=torch.int64)
+                return image_resized, target
+            except:
+                idx+=1
 
     def __len__(self):
         return len(self.all_images)
