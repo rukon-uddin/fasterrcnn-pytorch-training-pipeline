@@ -16,6 +16,8 @@ __all__ = [
     'fasterrcnn_nano',
     'fasterrcnn_resnet18',
     'fasterrcnn_resnet50_fpn_v2',
+    'fasterrcnn_resnet50_fpn_v2_custom1',
+    'fasterrcnn_resnet50_fpn_v2_custom2',
     'fasterrcnn_resnet50_fpn', 
     'fasterrcnn_resnet101',
     'fasterrcnn_resnet152',
